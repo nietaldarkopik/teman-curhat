@@ -1,0 +1,16 @@
+# fish-speech adalah eksperimen TTS terpisah (repo Python sendiri, ~6GB
+# termasuk venv dan model checkpoint) — tidak termasuk bagian curhat-tool.
+/fish-speech/
+
+# Arsip build installer, bisa dibuat ulang dari curhat-tool-installer/.
+/curhat-tool-installer.zip
+
+# Sampel suara pribadi untuk tes voice cloning, bukan bagian aplikasi.
+/*.mp3
+/textnya.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
