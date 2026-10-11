@@ -20,6 +20,7 @@ class Project extends Model
     protected $casts = [
         'planned_date' => 'date',
         'title_options' => 'array',
+        'thumb_options' => 'array',
     ];
 
     public function items(): HasMany

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Publication;
 use App\Models\Setting;
 use App\Support\Net;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class YouTubeService
@@ -115,6 +116,22 @@ class YouTubeService
         };
     }
 
+    /** Gagal pasang thumbnail (mis. channel belum terverifikasi) tidak membatalkan upload. */
+    private function setThumbnail(string $videoId, ?string $rel): void
+    {
+        $file = $rel ? Storage::disk('local')->path($rel) : null;
+        if (! $file || ! is_file($file)) {
+            return;
+        }
+        try {
+            Net::http()->withToken($this->accessToken())->timeout(120)
+                ->withBody(file_get_contents($file), str_ends_with($file, '.png') ? 'image/png' : 'image/jpeg')
+                ->post('https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId='.$videoId);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     /** Upload resumable. Jadwal tayang ditangani YouTube (publishAt), jadi komputer tidak perlu menyala saat jam tayang. */
     public function upload(Publication $pub): array
     {
@@ -182,6 +199,8 @@ class YouTubeService
 
                 if (in_array($res->status(), [200, 201], true)) {
                     $id = $res->json('id');
+
+                    $this->setThumbnail($id, $project->thumbnail_path);
 
                     return [$id, 'https://youtu.be/'.$id, $scheduled];
                 }

@@ -13,6 +13,7 @@ use App\Services\YouTubeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ProjectController extends Controller
 {
@@ -304,6 +305,56 @@ class ProjectController extends Controller
         ]));
 
         return back()->with('ok', 'Judul dan deskripsi disimpan.');
+    }
+
+    public function generateThumbTexts(Project $project, AiWriter $ai)
+    {
+        @set_time_limit(300);
+        $project->load('items.curhat');
+        try {
+            $project->update(['thumb_options' => $ai->thumbTexts($project)]);
+
+            return response()->json(['ok' => true]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    public function saveThumbnail(Request $r, Project $project)
+    {
+        $r->validate(['image' => 'required|string|max:6000000']);
+        if (! preg_match('#^data:image/(jpeg|png);base64,(.+)$#s', $r->input('image'), $m)) {
+            return response()->json(['error' => 'Format gambar tidak dikenali.'], 422);
+        }
+        $bin = base64_decode($m[2], true);
+        if ($bin === false || strlen($bin) > 2 * 1024 * 1024) {
+            return response()->json(['error' => 'Gambar rusak atau lebih dari 2 MB (batas YouTube).'], 422);
+        }
+        $rel = 'thumbnails/project-'.$project->id.'.'.($m[1] === 'png' ? 'png' : 'jpg');
+        if ($project->thumbnail_path && $project->thumbnail_path !== $rel) {
+            Storage::disk('local')->delete($project->thumbnail_path);
+        }
+        Storage::disk('local')->put($rel, $bin);
+        $project->update(['thumbnail_path' => $rel]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function deleteThumbnail(Project $project)
+    {
+        if ($project->thumbnail_path) {
+            Storage::disk('local')->delete($project->thumbnail_path);
+            $project->update(['thumbnail_path' => null]);
+        }
+
+        return back()->with('ok', 'Thumbnail dihapus.');
+    }
+
+    public function thumbnail(Project $project)
+    {
+        abort_unless($project->thumbnail_path && Storage::disk('local')->exists($project->thumbnail_path), 404);
+
+        return response()->file(Storage::disk('local')->path($project->thumbnail_path), ['Cache-Control' => 'no-cache']);
     }
 
     public function schedule(Request $r, Project $project)

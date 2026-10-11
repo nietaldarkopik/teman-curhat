@@ -129,6 +129,34 @@ P;
         ];
     }
 
+    /** Teks pendek untuk thumbnail. */
+    public function thumbTexts(Project $p): array
+    {
+        $items = $p->items->values()->map(fn ($it, $i) => ($i + 1).'. '.($it->curhat->topic ?: 'umum').': '.($it->curhat->summary ?: Str::limit($it->read_text, 150)))->implode("
+");
+
+        $prompt = <<<P
+Kamu membuat teks thumbnail YouTube untuk channel "{$this->channel()}". Video berisi sesi membaca curhat anonim dengan tanggapan host.
+
+Judul video: {$p->yt_title}
+Isi sesi:
+{$items}
+
+Buat 6 pilihan teks thumbnail dalam bahasa Indonesia. Tiap pilihan berisi:
+- "utama": teks besar, maksimal 5 kata, memancing penasaran tapi jujur, tidak menyesatkan, tidak membocorkan identitas siapa pun.
+- "kecil": teks pendukung maksimal 6 kata (boleh kosong).
+
+Format JSON:
+{"pilihan":[{"utama":"...","kecil":"..."}]}
+P;
+        $j = $this->claude->json($prompt, 1500);
+
+        return array_values(array_filter(array_map(fn ($o) => [
+            'main' => trim((string) ($o['utama'] ?? '')),
+            'sub' => trim((string) ($o['kecil'] ?? '')),
+        ], (array) ($j['pilihan'] ?? [])), fn ($o) => $o['main'] !== ''));
+    }
+
     /** Judul, deskripsi, tag untuk YouTube dan caption Facebook, dari isi video. */
     public function meta(Project $p): array
     {

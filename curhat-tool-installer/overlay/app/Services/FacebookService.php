@@ -262,7 +262,14 @@ class FacebookService
             $finish['published'] = 'false';
             $finish['scheduled_publish_time'] = $pub->publish_at->timestamp;
         }
-        $this->check(Net::http()->timeout(120)->asForm()->post($url, $finish));
+        $thumb = $project->thumbnail_path ? Storage::disk('local')->path($project->thumbnail_path) : null;
+        $req = Net::http()->timeout(120);
+        if ($thumb && is_file($thumb)) {
+            $req = $req->attach('thumb', file_get_contents($thumb), basename($thumb));
+        } else {
+            $req = $req->asForm();
+        }
+        $this->check($req->post($url, $finish));
 
         return [$videoId, "https://www.facebook.com/{$pageId}/videos/{$videoId}", $scheduled];
     }

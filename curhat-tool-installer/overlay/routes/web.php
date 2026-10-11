@@ -36,6 +36,10 @@ Route::get('/projects/{project}/publish', [ProjectController::class, 'publish'])
 Route::post('/projects/{project}/video', [ProjectController::class, 'saveVideo'])->name('projects.video');
 Route::post('/projects/{project}/meta/generate', [ProjectController::class, 'generateMeta'])->name('projects.meta.generate');
 Route::post('/projects/{project}/meta', [ProjectController::class, 'saveMeta'])->name('projects.meta');
+Route::post('/projects/{project}/thumbnail/generate', [ProjectController::class, 'generateThumbTexts'])->name('projects.thumb.generate');
+Route::post('/projects/{project}/thumbnail', [ProjectController::class, 'saveThumbnail'])->name('projects.thumb.save');
+Route::post('/projects/{project}/thumbnail/delete', [ProjectController::class, 'deleteThumbnail'])->name('projects.thumb.delete');
+Route::get('/projects/{project}/thumbnail', [ProjectController::class, 'thumbnail'])->name('projects.thumb.show');
 Route::post('/projects/{project}/schedule', [ProjectController::class, 'schedule'])->name('projects.schedule');
 
 Route::get('/uploads', [PublicationController::class, 'index'])->name('uploads.index');
