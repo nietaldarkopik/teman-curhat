@@ -49,8 +49,10 @@ Tugas 2: Beri topik singkat (1-3 kata, contoh: "rumah tangga", "pacaran", "kelua
 
 Tugas 3: Nilai apakah curhat berisi keinginan bunuh diri atau menyakiti diri, kekerasan yang masih berlangsung, kekerasan seksual, atau anak di bawah umur sebagai korban. Bila ya, sensitif = true dan jelaskan singkat.
 
+Tugas 4: Tebak jenis kelamin PENGIRIM sendiri (bukan orang lain yang disebut) dari petunjuk di teks — kata ganti/sebutan diri ("aku cewek", "sebagai cowok"), panggilan yang dipakai pacarnya ("sayang", "mas", "mbak"), atau konteks jelas lain. Jawab "pria", "wanita", atau "tidak_diketahui" kalau tidak ada petunjuk yang cukup jelas. Ini dipakai untuk memilih suara TTS yang membacakan curhat, jadi tebak dengan hati-hati — kalau ragu, jawab "tidak_diketahui".
+
 Format JSON:
-{"nama_asli_ditampilkan":false,"teks_anonim":"...","topik":"...","ringkasan":"...","sensitif":false,"catatan_sensitif":""}
+{"nama_asli_ditampilkan":false,"teks_anonim":"...","topik":"...","ringkasan":"...","sensitif":false,"catatan_sensitif":"","gender_pengirim":"tidak_diketahui"}
 
 Curhat:
 """
@@ -64,6 +66,8 @@ P;
         $c->summary = trim((string) ($j['ringkasan'] ?? ''));
         $c->is_sensitive = (bool) ($j['sensitif'] ?? false);
         $c->sensitive_note = trim((string) ($j['catatan_sensitif'] ?? '')) ?: null;
+        $gender = trim((string) ($j['gender_pengirim'] ?? ''));
+        $c->sender_gender = in_array($gender, ['pria', 'wanita'], true) ? $gender : 'tidak_diketahui';
         $c->save();
 
         return $c;

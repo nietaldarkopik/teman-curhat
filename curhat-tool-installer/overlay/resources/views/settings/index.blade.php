@@ -52,13 +52,21 @@
 
   <div class="card">
     <h2>Narasi Suara (TTS)</h2>
-    <p class="muted small">Dipakai tombol "Buat narasi suara (TTS)" di Inbox, lewat 9Router yang sama seperti di atas.</p>
+    <p class="muted small">Dipakai tombol "Buat narasi suara (TTS)" di Inbox dan Short Harian Otomatis, lewat 9Router yang sama seperti di atas. Dua profil suara — Short Harian otomatis memilih yang sesuai gender pengirim curhat (deteksi AI saat anonimisasi).</p>
     <label class="f">Model TTS</label>
     <input type="text" name="tts_model" value="{{ $s('tts_model') }}">
+
+    <p class="muted small" style="margin-top:14px;margin-bottom:4px"><b>Suara pria (default)</b></p>
     <label class="f">Suara <span class="hint">(nama voice Gemini, mis. Achird, Sulafat, Umbriel — kosongkan bila model tidak butuh voice)</span></label>
     <input type="text" name="tts_voice" value="{{ $s('tts_voice') }}">
     <label class="f">Karakter suara <span class="hint">(instruksi gaya bicara, bebas bahasa Inggris/Indonesia)</span></label>
     <textarea name="tts_voice_character" style="min-height:140px">{{ $s('tts_voice_character') }}</textarea>
+
+    <p class="muted small" style="margin-top:14px;margin-bottom:4px"><b>Suara wanita</b></p>
+    <label class="f">Suara <span class="hint">(nama voice Gemini, mis. Kore, Despina, Aoede, Leda)</span></label>
+    <input type="text" name="tts_voice_female" value="{{ $s('tts_voice_female') }}">
+    <label class="f">Karakter suara</label>
+    <textarea name="tts_voice_character_female" style="min-height:140px">{{ $s('tts_voice_character_female') }}</textarea>
   </div>
 
   <div class="card">
@@ -92,8 +100,10 @@
     <input type="text" name="ffmpeg_path" value="{{ $s('ffmpeg_path') }}">
     <div class="grid g2">
       <div><label class="f">Path edge-tts <span class="hint">(suara cadangan)</span></label><input type="text" name="edge_tts_path" value="{{ $s('edge_tts_path') }}"></div>
-      <div><label class="f">Suara edge-tts</label><input type="text" name="edge_tts_voice" value="{{ $s('edge_tts_voice') }}"></div>
+      <div><label class="f">Suara edge-tts (pria)</label><input type="text" name="edge_tts_voice" value="{{ $s('edge_tts_voice') }}"></div>
     </div>
+    <label class="f">Suara edge-tts (wanita)</label>
+    <input type="text" name="edge_tts_voice_female" value="{{ $s('edge_tts_voice_female') }}">
   </div>
 
   <div class="card">

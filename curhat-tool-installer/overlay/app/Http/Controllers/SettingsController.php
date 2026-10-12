@@ -12,9 +12,9 @@ class SettingsController extends Controller
 {
     private const PLAIN = [
         'channel_name', 'host_style', 'ai_provider', 'anthropic_model', 'nine_router_base_url', 'nine_router_model',
-        'tts_model', 'tts_voice', 'tts_voice_character',
+        'tts_model', 'tts_voice', 'tts_voice_character', 'tts_voice_female', 'tts_voice_character_female',
         'short_enabled', 'short_make_time', 'short_window_end', 'short_daily_count', 'short_publish_delay_minutes', 'short_max_chars', 'short_watermark', 'short_cta', 'short_logo', 'short_bgm',
-        'ffmpeg_path', 'edge_tts_path', 'edge_tts_voice',
+        'ffmpeg_path', 'edge_tts_path', 'edge_tts_voice', 'edge_tts_voice_female',
         'video_folder', 'default_privacy', 'default_publish_time',
         'fb_app_id', 'fb_login_config_id', 'fb_graph_version', 'fb_scopes', 'fb_sync_days', 'fb_group_hours', 'google_client_id',
     ];

@@ -10,10 +10,13 @@ use RuntimeException;
 /**
  * Text-to-speech lewat instance 9Router lokal (endpoint OpenAI-compatible
  * /audio/speech, gateway yang sama yang dipakai clipper-tool). Karakter suara
- * (Setting::tts_voice_character) ditempel sebagai instruksi gaya bicara di
- * depan teks yang dibacakan — ini cara Gemini TTS menerima arahan gaya
- * (bukan lewat field terpisah), jadi pendekatan ini paling luwes dipakai
- * lintas model yang tersedia di 9Router.
+ * ditempel sebagai instruksi gaya bicara di depan teks yang dibacakan — ini cara
+ * Gemini TTS menerima arahan gaya (bukan lewat field terpisah), jadi pendekatan
+ * ini paling luwes dipakai lintas model yang tersedia di 9Router.
+ *
+ * Ada dua profil suara: "male" (default, dipakai bila $gender bukan "female")
+ * dan "female" — dipilih per pemanggilan, bukan satu suara global, supaya
+ * MakeShort bisa menyesuaikan suara pembaca/pembalas dengan gender pengirim.
  */
 class TtsService
 {
@@ -23,17 +26,17 @@ class TtsService
     }
 
     /** Sintesis teks jadi audio (WAV), simpan ke storage/app/public/tts, kembalikan path relatif disk "public". */
-    public function synthesize(string $text, string $filename): string
+    public function synthesize(string $text, string $filename, string $gender = 'male'): string
     {
         $key = Setting::val('nine_router_api_key');
         $baseUrl = Setting::val('nine_router_base_url');
         $model = Setting::val('tts_model');
-        $voice = Setting::val('tts_voice');
+        $voice = $this->voiceSetting($gender);
         if (! $key || ! $model) {
             throw new RuntimeException('TTS belum lengkap diisi (API key/model 9Router). Buka menu Pengaturan.');
         }
 
-        $character = trim((string) Setting::val('tts_voice_character'));
+        $character = trim((string) Setting::val($this->characterSetting($gender)));
         $input = $character ? "{$character}\n\n---\n\nUcapkan naskah berikut sesuai karakter suara di atas:\n\n{$text}" : $text;
 
         $modelId = $voice ? "{$model}/{$voice}" : $model;
@@ -52,7 +55,7 @@ class TtsService
 
         $dir = 'tts';
         $path = "{$dir}/{$filename}.wav";
-        \Illuminate\Support\Facades\Storage::disk('public')->put($path, $res->body());
+        Storage::disk('public')->put($path, $res->body());
 
         return $path;
     }
@@ -64,12 +67,12 @@ class TtsService
      *
      * @return array{0:string,1:string} [path absolut, 'nine_router'|'edge_tts']
      */
-    public function speak(string $text, string $filename): array
+    public function speak(string $text, string $filename, string $gender = 'male'): array
     {
         $primaryError = null;
         if ($this->configured()) {
             try {
-                $rel = $this->synthesize($text, $filename);
+                $rel = $this->synthesize($text, $filename, $gender);
 
                 return [Storage::disk('public')->path($rel), 'nine_router'];
             } catch (\Throwable $e) {
@@ -80,16 +83,27 @@ class TtsService
         }
 
         try {
-            return [$this->edgeTts($text, $filename), 'edge_tts'];
+            return [$this->edgeTts($text, $filename, $gender), 'edge_tts'];
         } catch (\Throwable $e) {
             throw new RuntimeException('Semua suara gagal. 9Router: '.$primaryError.' | Cadangan: '.$e->getMessage());
         }
     }
 
-    private function edgeTts(string $text, string $filename): string
+    private function voiceSetting(string $gender): string
+    {
+        return (string) Setting::val($gender === 'female' ? 'tts_voice_female' : 'tts_voice');
+    }
+
+    private function characterSetting(string $gender): string
+    {
+        return $gender === 'female' ? 'tts_voice_character_female' : 'tts_voice_character';
+    }
+
+    private function edgeTts(string $text, string $filename, string $gender = 'male'): string
     {
         $bin = trim((string) Setting::val('edge_tts_path')) ?: 'edge-tts';
-        $voice = trim((string) Setting::val('edge_tts_voice')) ?: 'id-ID-ArdiNeural';
+        $voiceKey = $gender === 'female' ? 'edge_tts_voice_female' : 'edge_tts_voice';
+        $voice = trim((string) Setting::val($voiceKey)) ?: ($gender === 'female' ? 'id-ID-GadisNeural' : 'id-ID-ArdiNeural');
 
         Storage::disk('public')->makeDirectory('tts');
         $out = Storage::disk('public')->path("tts/{$filename}-edge.mp3");

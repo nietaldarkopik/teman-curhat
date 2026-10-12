@@ -200,11 +200,17 @@ class MakeShort extends Command
         $pkg = $ai->shortPackage($readText, $c->reply_text, $c->topic);
         $replySpoken = trim($pkg['reply'].' '.$pkg['question']);
 
+        // Pembacaan curhat ikut gender pengirim (kalau wanita → suara wanita).
+        // Balasan host sebaliknya hanya dialihkan ke wanita kalau pengirimnya pria
+        // (biar videonya tidak selalu suara pria doang); selain itu tetap pria (default).
+        $readGender = $c->sender_gender === 'wanita' ? 'female' : 'male';
+        $replyGender = $c->sender_gender === 'pria' ? 'female' : 'male';
+
         $this->line('Membuat suara...');
         $stamp = $c->id.'-'.time();
-        [$readAudio, $engine1] = $tts->speak($readText, "short-{$stamp}-read");
-        [$replyAudio, $engine2] = $tts->speak($replySpoken, "short-{$stamp}-reply");
-        $this->line("Suara: {$engine1} / {$engine2}");
+        [$readAudio, $engine1] = $tts->speak($readText, "short-{$stamp}-read", $readGender);
+        [$replyAudio, $engine2] = $tts->speak($replySpoken, "short-{$stamp}-reply", $replyGender);
+        $this->line("Suara: {$engine1} ({$readGender}) / {$engine2} ({$replyGender})");
 
         $this->line('Merender video...');
         $out = storage_path('app/shorts/curhat-'.$c->id.'-'.now()->format('Ymd-His').'.mp4');
