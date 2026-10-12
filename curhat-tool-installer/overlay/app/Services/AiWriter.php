@@ -33,9 +33,15 @@ class AiWriter
         $prompt = <<<P
 Kamu membantu admin page Facebook "{$this->channel()}" yang membacakan curhat kiriman orang secara anonim di YouTube. Pengirim biasanya meminta namanya tidak disebut.
 
-Tugas 1: Anonimkan curhat di bawah agar pengirim dan orang yang disebut tidak bisa dikenali.
+Tugas 0: Tentukan dulu apakah nama ASLI pengirim sendiri boleh tetap disebut di teks hasil.
+- Jawab "ya" HANYA kalau pengirim jelas-jelas memperkenalkan dirinya dengan nama itu (misal "aku Budi", "nama aku Rina") DAN di seluruh pesan TIDAK ADA permintaan atau sinyal untuk disamarkan (seperti "jangan sebut nama", "samarkan", "anonim saja", "rahasiakan identitasku").
+- Kalau ragu, pesan tidak menyebut nama sendiri sama sekali, atau ADA sinyal minta dirahasiakan walau samar — jawab "tidak". Default-nya selalu "tidak".
+- Ini HANYA untuk nama pengirim sendiri. Nama orang lain yang disebut pengirim (pacar, teman, keluarga, atasan, dll) tidak pernah termasuk di sini.
+
+Tugas 1: Anonimkan curhat di bawah agar pengirim (kecuali Tugas 0 = "ya") dan orang lain yang disebut tidak bisa dikenali.
 - Ganti setiap nama orang dengan nama samaran Indonesia yang umum, konsisten untuk orang yang sama. Sebutan umum seperti "ibuku", "pacarku", "bosku" tidak perlu diganti.
-- Ganti nama kota atau daerah, sekolah, kampus, kantor, perusahaan, akun media sosial, nomor telepon, alamat, dan tanggal spesifik dengan versi umum, misalnya "sebuah kota di Jawa" atau "kantor tempat aku kerja".
+  - PENGECUALIAN WAJIB: kalau Tugas 0 = "ya", nama asli pengirim itu HARUS tetap ditulis apa adanya di teks_anonim, di setiap tempat nama itu disebut — jangan diganti nama samaran, jangan dihapus/diparafrase jadi hilang. Nama orang lain tetap disamarkan seperti biasa.
+- Ganti nama kota atau daerah, sekolah, kampus, kantor, perusahaan, akun media sosial, nomor telepon, alamat, dan tanggal spesifik dengan versi umum, misalnya "sebuah kota di Jawa" atau "kantor tempat aku kerja". Ini tetap berlaku walau nama pengirim dipertahankan.
 - Hapus salam pembuka kepada admin seperti "min, tolong jangan sebut namaku ya" bila tidak penting untuk cerita.
 - Jangan mengubah alur cerita, perasaan, atau gaya bahasa pengirim. Rapikan salah ketik hanya bila mengganggu pembacaan.
 
@@ -44,7 +50,7 @@ Tugas 2: Beri topik singkat (1-3 kata, contoh: "rumah tangga", "pacaran", "kelua
 Tugas 3: Nilai apakah curhat berisi keinginan bunuh diri atau menyakiti diri, kekerasan yang masih berlangsung, kekerasan seksual, atau anak di bawah umur sebagai korban. Bila ya, sensitif = true dan jelaskan singkat.
 
 Format JSON:
-{"teks_anonim":"...","topik":"...","ringkasan":"...","sensitif":false,"catatan_sensitif":""}
+{"nama_asli_ditampilkan":false,"teks_anonim":"...","topik":"...","ringkasan":"...","sensitif":false,"catatan_sensitif":""}
 
 Curhat:
 """
