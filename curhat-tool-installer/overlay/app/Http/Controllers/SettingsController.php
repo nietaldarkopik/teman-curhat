@@ -13,6 +13,8 @@ class SettingsController extends Controller
     private const PLAIN = [
         'channel_name', 'host_style', 'ai_provider', 'anthropic_model', 'nine_router_base_url', 'nine_router_model',
         'tts_model', 'tts_voice', 'tts_voice_character',
+        'short_enabled', 'short_make_time', 'short_max_chars', 'short_watermark', 'short_cta', 'short_logo', 'short_bgm',
+        'ffmpeg_path', 'edge_tts_path', 'edge_tts_voice',
         'video_folder', 'default_privacy', 'default_publish_time',
         'fb_app_id', 'fb_login_config_id', 'fb_graph_version', 'fb_scopes', 'fb_sync_days', 'fb_group_hours', 'google_client_id',
     ];
@@ -39,6 +41,9 @@ class SettingsController extends Controller
             'video_folder' => 'nullable|string|max:500',
             'default_publish_time' => 'nullable|date_format:H:i',
             'default_privacy' => 'nullable|in:public,unlisted,private',
+            'short_make_time' => 'nullable|date_format:H:i',
+            'short_max_chars' => 'nullable|integer|min:100|max:2000',
+            'short_enabled' => 'nullable|in:0,1',
             'fb_sync_days' => 'nullable|integer|min:1|max:365',
             'fb_group_hours' => 'nullable|integer|min:1|max:72',
         ]);
