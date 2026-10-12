@@ -76,6 +76,8 @@
       <div><label class="f">Slot pertama jam</label><input type="time" name="short_make_time" value="{{ $s('short_make_time') }}"></div>
       <div><label class="f">Slot terakhir jam <span class="hint">(video disebar merata di antara dua jam ini)</span></label><input type="time" name="short_window_end" value="{{ $s('short_window_end') }}"></div>
     </div>
+    <label class="f">Tayang berapa menit setelah dibuat <span class="hint">(bukan jam tetap — supaya beberapa video sehari tayang tersebar, bukan numpuk bareng di satu jam)</span></label>
+    <input type="number" min="5" max="720" name="short_publish_delay_minutes" value="{{ $s('short_publish_delay_minutes') }}">
     <label class="f">Maksimal panjang curhat <span class="hint">(karakter; yang lebih panjang dilewati)</span></label>
     <input type="number" name="short_max_chars" value="{{ $s('short_max_chars') }}">
     <div class="grid g2">

@@ -276,15 +276,17 @@ class MakeShort extends Command
         });
     }
 
-    /** Jam tayang default hari ini; bila sudah lewat (atau kurang dari 15 menit lagi), tayang segera. */
-    private function publishAt(): ?\Illuminate\Support\Carbon
+    /**
+     * Jam tayang: sebentar lagi setelah video ini selesai dibuat — BUKAN satu jam
+     * global yang sama untuk semua video hari ini ("default_publish_time" dipakai
+     * flow publish manual di ProjectController, bukan di sini). Dengan ini,
+     * beberapa video sehari otomatis tayang tersebar wajar mengikuti jam
+     * slot pembuatannya masing-masing, bukan numpuk tayang bareng di jam yang sama.
+     */
+    private function publishAt(): \Illuminate\Support\Carbon
     {
-        $time = (string) Setting::val('default_publish_time');
-        if (! preg_match('/^\d{1,2}:\d{2}$/', $time)) {
-            return null;
-        }
-        $at = now()->setTimeFromTimeString($time);
+        $delay = max(5, (int) Setting::val('short_publish_delay_minutes'));
 
-        return $at->gt(now()->addMinutes(15)) ? $at : null;
+        return now()->addMinutes($delay);
     }
 }

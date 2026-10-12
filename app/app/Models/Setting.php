@@ -35,6 +35,7 @@ class Setting extends Model
         'short_make_time' => '09:00',
         'short_window_end' => '21:00',
         'short_daily_count' => '5',
+        'short_publish_delay_minutes' => '20',
         'short_max_chars' => '900',
         'short_watermark' => '@temancurhat',
         'short_cta' => 'Mau curhat? Kirim DM ke Page Teman Curhat',
