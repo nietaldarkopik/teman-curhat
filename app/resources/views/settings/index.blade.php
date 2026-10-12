@@ -63,14 +63,18 @@
 
   <div class="card">
     <h2>Short Harian Otomatis</h2>
-    <p class="muted small">Tiap hari satu curhat dari DM dianonimkan, dibacakan, dibalas, lalu dirender jadi video 9:16 dan diunggah ke YouTube + Facebook. Curhat yang ditandai sensitif atau berstatus "Tidak boleh" di menu Izin tidak pernah dipakai. Bila 9Router TTS gagal atau kuota habis, suara beralih ke edge-tts.</p>
+    <p class="muted small">Tiap hari beberapa curhat dari DM dianonimkan, dibacakan, dibalas, lalu dirender jadi video 9:16 dan diunggah ke YouTube + Facebook. Curhat yang ditandai sensitif atau berstatus "Tidak boleh" di menu Izin tidak pernah dipakai. Bila 9Router TTS gagal atau kuota habis, suara beralih ke edge-tts.</p>
     <div class="grid g2">
       <div><label class="f">Status</label>
         <select name="short_enabled">
           <option value="1" @selected($s('short_enabled') !== '0')>Aktif</option>
           <option value="0" @selected($s('short_enabled') === '0')>Nonaktif</option>
         </select></div>
-      <div><label class="f">Dibuat setelah jam</label><input type="time" name="short_make_time" value="{{ $s('short_make_time') }}"></div>
+      <div><label class="f">Video per hari</label><input type="number" min="1" max="20" name="short_daily_count" value="{{ $s('short_daily_count') }}"></div>
+    </div>
+    <div class="grid g2">
+      <div><label class="f">Slot pertama jam</label><input type="time" name="short_make_time" value="{{ $s('short_make_time') }}"></div>
+      <div><label class="f">Slot terakhir jam <span class="hint">(video disebar merata di antara dua jam ini)</span></label><input type="time" name="short_window_end" value="{{ $s('short_window_end') }}"></div>
     </div>
     <label class="f">Maksimal panjang curhat <span class="hint">(karakter; yang lebih panjang dilewati)</span></label>
     <input type="number" name="short_max_chars" value="{{ $s('short_max_chars') }}">

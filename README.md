@@ -30,8 +30,17 @@ Lihat [`curhat-tool-installer/PANDUAN.md`](curhat-tool-installer/PANDUAN.md).
 ajakan kirim DM. Hasilnya masuk antrean upload YouTube + Facebook yang sudah ada
 (`curhat:process-uploads`).
 
-- Jalan otomatis lewat scheduler (tiap 10 menit, hanya satu video per hari, setelah jam
-  "Dibuat setelah jam" di Pengaturan > Short Harian Otomatis). Gagal? dicoba ulang maksimal 3x/hari.
+- Jalan otomatis lewat scheduler (tiap 10 menit), sampai **"Video per hari"** (Pengaturan >
+  Short Harian Otomatis, default 5). Slotnya disebar merata antara jam **"Slot pertama"** dan
+  **"Slot terakhir"** — mis. 5 video dari 09:00–21:00 jadi jam 09:00, 12:00, 15:00, 18:00, 21:00.
+  Gagal? dicoba ulang maksimal 3x per slot, jeda 30 menit antar percobaan.
+- **Batas yang perlu diwaspadai kalau menaikkan angka ini lebih tinggi lagi:** kuota harian
+  YouTube Data API default 10.000 unit, satu upload video ±1.600 unit — jadi sekitar 6
+  upload/hari sebelum kena limit (reset tengah malam Pacific Time). Posting otomatis terlalu
+  sering ke Facebook Page baru/belum terverifikasi juga berisiko kena rate-limit/spam oleh Meta.
+  Jumlah video yang benar-benar jadi juga tetap tergantung stok DM curhat yang layak pakai
+  (belum sensitif, sudah dapat izin, panjang wajar) — kalau stoknya habis, slot hari itu
+  dilewati begitu saja, bukan error.
 - Curhat yang belum dianonimkan dianonimkan dulu; yang ditandai sensitif atau berizin
   "Tidak boleh" dilewati. Yang berizin "Boleh" didahulukan. Balasan dibuat AI bila belum ada.
 - Suara: TTS 9Router; bila gagal/kuota habis otomatis ke edge-tts (`pip install edge-tts`).

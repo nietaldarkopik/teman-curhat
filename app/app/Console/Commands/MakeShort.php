@@ -20,10 +20,10 @@ class MakeShort extends Command
 {
     protected $signature = 'curhat:make-short
         {--curhat= : ID curhat tertentu (abaikan pemilihan otomatis)}
-        {--force : abaikan jam, batas satu video per hari, dan jeda percobaan ulang}
+        {--force : abaikan jam, batas jumlah video per hari, dan jeda percobaan ulang}
         {--no-upload : buat video saja, jangan masuk antrean upload}';
 
-    protected $description = 'Buat satu video short dari DM curhat (curhatan lalu balasan) dan masukkan ke antrean upload YouTube + Facebook';
+    protected $description = 'Buat video short dari DM curhat (curhatan lalu balasan) dan masukkan ke antrean upload YouTube + Facebook, sampai batas jumlah per hari';
 
     private const MAX_ATTEMPTS_PER_DAY = 3;
     private const RETRY_AFTER_MINUTES = 30;
@@ -74,11 +74,13 @@ class MakeShort extends Command
         if (Setting::val('short_enabled') === '0') {
             return false;
         }
-        $time = (string) Setting::val('short_make_time');
-        if (preg_match('/^\d{1,2}:\d{2}$/', $time) && now()->lt(now()->setTimeFromTimeString($time))) {
+        $count = max(1, (int) Setting::val('short_daily_count'));
+        $made = Project::where('kind', 'short')->whereDate('created_at', today())->count();
+        if ($made >= $count) {
             return false;
         }
-        if (Project::where('kind', 'short')->whereDate('created_at', today())->exists()) {
+        $slot = $this->slotTime($made, $count);
+        if ($slot && now()->lt($slot)) {
             return false;
         }
         if ((string) Setting::val('short_attempt_date') === today()->toDateString()) {
@@ -92,6 +94,33 @@ class MakeShort extends Command
         }
 
         return true;
+    }
+
+    /**
+     * Jam mulai slot video ke-$index (0-based) hari ini, disebar merata antara
+     * "short_make_time" (slot pertama) dan "short_window_end" (slot terakhir).
+     * Kalau jam akhir kosong/tidak valid, semua slot jadi "mulai jam X" saja
+     * (perilaku lama: begitu due, langsung dikejar tiap 10 menit).
+     */
+    private function slotTime(int $index, int $count): ?\Illuminate\Support\Carbon
+    {
+        $start = (string) Setting::val('short_make_time');
+        if (! preg_match('/^\d{1,2}:\d{2}$/', $start)) {
+            return null;
+        }
+        $startAt = now()->setTimeFromTimeString($start);
+
+        $end = (string) Setting::val('short_window_end');
+        if ($count <= 1 || ! preg_match('/^\d{1,2}:\d{2}$/', $end)) {
+            return $startAt;
+        }
+        $endAt = now()->setTimeFromTimeString($end);
+        if ($endAt->lte($startAt)) {
+            $endAt = $startAt->copy()->addHours(6);
+        }
+        $stepMinutes = $startAt->diffInMinutes($endAt) / ($count - 1);
+
+        return $startAt->copy()->addMinutes((int) round($stepMinutes * $index));
     }
 
     private function noteAttempt(): void
