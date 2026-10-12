@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Curhat;
 use App\Models\Project;
 use App\Models\Setting;
+use App\Support\NaskahStyle;
 use Illuminate\Support\Str;
 
 /**
@@ -174,6 +175,62 @@ P;
             'tags' => implode(', ', array_map(fn ($t) => trim((string) $t, " #\t\n"), (array) ($j['tag'] ?? []))),
             'fb_title' => trim((string) ($j['judul_facebook'] ?? '')),
             'fb_description' => trim((string) ($j['caption_facebook'] ?? '')),
+        ];
+    }
+
+    /**
+     * Paket untuk satu video short: hook, balasan singkat, lemparan ke penonton, dan metadata upload.
+     * $existingReply (bila ada) dipakai sebagai acuan isi balasan, hanya diringkas.
+     */
+    public function shortPackage(string $anonText, ?string $existingReply = null, ?string $topic = null): array
+    {
+        $ref = $existingReply
+            ? "\nBalasan acuan dari host (pertahankan maksud dan sarannya, ringkas saja):\n\"\"\"".Str::limit($existingReply, 3000)."\"\"\"\n"
+            : '';
+        $guide = NaskahStyle::GUIDE;
+
+        $prompt = <<<P
+Kamu penulis naskah video short (YouTube Shorts dan Reels Facebook) untuk channel "{$this->channel()}". Satu video membacakan satu curhat anonim dari DM, lalu host membalasnya.
+
+Gaya bicara host: {$this->style()}
+
+{$guide}
+
+Tulis:
+- "hook": judul pendek untuk ditampilkan di layar video, maksimal 42 karakter, memancing penasaran tanpa menyesatkan, tanpa nama orang.
+- "balasan": balasan host untuk dibacakan, 70-90 kata. Akui perasaannya dulu, lalu satu atau dua saran praktis. Tidak menghakimi, tidak mendiagnosis, tidak mengaku psikolog. Jangan menambah fakta di luar cerita.
+- "lemparan": satu kalimat pertanyaan spesifik ke penonton, diucapkan di akhir balasan, mengajak menjawab di kolom komentar.
+- "judul_youtube": maksimal 80 karakter, menarik tapi jujur.
+- "deskripsi": 2-3 kalimat. Sebut bahwa cerita dibacakan anonim, balasan adalah pendapat pribadi dan bukan pengganti bantuan profesional, dan ajak kirim curhat lewat DM page Facebook "{$this->channel()}".
+- "tag": 8-12 tag, kata atau frasa pendek tanpa tanda pagar.
+- "caption_facebook": 2-3 kalimat plus 3-5 hashtag di akhir.
+{$ref}
+Topik: {$topic}
+
+Curhat (sudah dianonimkan):
+"""
+{$anonText}
+"""
+
+Format JSON:
+{"hook":"...","balasan":"...","lemparan":"...","judul_youtube":"...","deskripsi":"...","tag":["..."],"caption_facebook":"..."}
+P;
+        $j = $this->claude->json($prompt, 2500);
+
+        $hook = trim((string) ($j['hook'] ?? ''));
+        $reply = trim((string) ($j['balasan'] ?? ''));
+        if ($hook === '' || $reply === '') {
+            throw new \RuntimeException('AI tidak mengembalikan hook atau balasan untuk short.');
+        }
+
+        return [
+            'hook' => Str::limit($hook, 48, ''),
+            'reply' => $reply,
+            'question' => trim((string) ($j['lemparan'] ?? '')),
+            'yt_title' => Str::limit(trim((string) ($j['judul_youtube'] ?? $hook)), 90, ''),
+            'description' => trim((string) ($j['deskripsi'] ?? '')),
+            'tags' => array_values(array_filter(array_map(fn ($t) => trim((string) $t, " #\t\n"), (array) ($j['tag'] ?? [])))),
+            'fb_caption' => trim((string) ($j['caption_facebook'] ?? '')),
         ];
     }
 }

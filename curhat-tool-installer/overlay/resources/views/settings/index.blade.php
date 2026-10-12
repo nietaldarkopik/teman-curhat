@@ -62,6 +62,35 @@
   </div>
 
   <div class="card">
+    <h2>Short Harian Otomatis</h2>
+    <p class="muted small">Tiap hari satu curhat dari DM dianonimkan, dibacakan, dibalas, lalu dirender jadi video 9:16 dan diunggah ke YouTube + Facebook. Curhat yang ditandai sensitif atau berstatus "Tidak boleh" di menu Izin tidak pernah dipakai. Bila 9Router TTS gagal atau kuota habis, suara beralih ke edge-tts.</p>
+    <div class="grid g2">
+      <div><label class="f">Status</label>
+        <select name="short_enabled">
+          <option value="1" @selected($s('short_enabled') !== '0')>Aktif</option>
+          <option value="0" @selected($s('short_enabled') === '0')>Nonaktif</option>
+        </select></div>
+      <div><label class="f">Dibuat setelah jam</label><input type="time" name="short_make_time" value="{{ $s('short_make_time') }}"></div>
+    </div>
+    <label class="f">Maksimal panjang curhat <span class="hint">(karakter; yang lebih panjang dilewati)</span></label>
+    <input type="number" name="short_max_chars" value="{{ $s('short_max_chars') }}">
+    <div class="grid g2">
+      <div><label class="f">Watermark</label><input type="text" name="short_watermark" value="{{ $s('short_watermark') }}"></div>
+      <div><label class="f">Ajakan di bawah video</label><input type="text" name="short_cta" value="{{ $s('short_cta') }}"></div>
+    </div>
+    <label class="f">Logo <span class="hint">(path file PNG, mis. C:\wamp64\www\curhat-tool\logo.png; kosong = logo bawaan)</span></label>
+    <input type="text" name="short_logo" value="{{ $s('short_logo') }}">
+    <label class="f">Musik latar <span class="hint">(opsional, path file mp3; dipelankan di bawah suara)</span></label>
+    <input type="text" name="short_bgm" value="{{ $s('short_bgm') }}">
+    <label class="f">Path FFmpeg <span class="hint">(kosongkan/"ffmpeg" bila sudah ada di PATH)</span></label>
+    <input type="text" name="ffmpeg_path" value="{{ $s('ffmpeg_path') }}">
+    <div class="grid g2">
+      <div><label class="f">Path edge-tts <span class="hint">(suara cadangan)</span></label><input type="text" name="edge_tts_path" value="{{ $s('edge_tts_path') }}"></div>
+      <div><label class="f">Suara edge-tts</label><input type="text" name="edge_tts_voice" value="{{ $s('edge_tts_voice') }}"></div>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Facebook Page</h2>
     @if ($fb->connected())
       <p class="info">Terhubung ke Page <b>{{ $s('fb_page_name') }}</b>.</p>

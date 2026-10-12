@@ -15,6 +15,14 @@ class Curhat extends Model
         'arsip' => 'Diarsip',
     ];
 
+    /** Izin pengirim untuk dibacakan di video (kolom consent_status). */
+    public const CONSENTS = [
+        'unknown' => 'Belum ditanya',
+        'requested' => 'Sudah ditanya',
+        'granted' => 'Boleh',
+        'denied' => 'Tidak boleh',
+    ];
+
     protected $guarded = ['id'];
 
     protected $casts = [
