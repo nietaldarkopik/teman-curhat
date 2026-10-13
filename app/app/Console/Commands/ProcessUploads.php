@@ -50,6 +50,41 @@ class ProcessUploads extends Command
             }
         }
 
+        $this->postComments($yt);
+
         return self::SUCCESS;
+    }
+
+    /**
+     * Komentar pembuka (pertanyaan + ajakan subscribe) di video YouTube yang baru tayang.
+     * Dicoba beberapa kali karena video terjadwal bisa terlambat publik beberapa menit.
+     * Gagal komentar tidak pernah mengubah status upload.
+     */
+    private function postComments(YouTubeService $yt): void
+    {
+        if (! $yt->connected()) {
+            return;
+        }
+        $pubs = Publication::with('project.items')
+            ->where('platform', 'youtube')
+            ->where('status', 'tayang')
+            ->whereNotNull('remote_id')
+            ->whereNull('comment_posted_at')
+            ->where('comment_attempts', '<', 5)
+            ->where('publish_at', '>', now()->subHours(6))
+            ->limit(5)
+            ->get();
+
+        foreach ($pubs as $pub) {
+            $pub->increment('comment_attempts');
+            try {
+                $yt->postComment($pub->remote_id, $yt->engagementComment($pub->project));
+                $pub->update(['comment_posted_at' => now(), 'comment_error' => null]);
+                $this->info("Komentar terpasang di {$pub->remote_url} (pin manual di YouTube Studio).");
+            } catch (\Throwable $e) {
+                $pub->update(['comment_error' => mb_substr($e->getMessage(), 0, 500)]);
+                $this->warn($e->getMessage());
+            }
+        }
     }
 }

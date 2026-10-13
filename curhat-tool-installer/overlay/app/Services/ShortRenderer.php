@@ -22,7 +22,7 @@ class ShortRenderer
 
     private const LEAD = 0.4;   // detik hening sebelum suara mulai
     private const GAP = 0.7;    // jeda antara curhatan dan balasan
-    private const TAIL = 1.8;   // layar penutup setelah balasan
+    private const TAIL = 3.2;   // layar penutup (ajakan subscribe) setelah balasan
 
     private const CARD = ['x' => 70, 'y' => 520, 'w' => 940, 'h' => 840];
     private const CHARS_PER_LINE = 27;
@@ -59,16 +59,17 @@ class ShortRenderer
             copy($this->brandDir.'/Inter-Bold.otf', $work.'/Inter-Bold.otf');
             copy($this->brandDir.'/Inter-Regular.otf', $work.'/Inter-Regular.otf');
             $logoSrc = ($this->logo && is_file($this->logo)) ? $this->logo : $this->brandDir.'/logo.png';
-            copy($logoSrc, $work.'/logo.png');
+            $logoW = $this->prepareLogo($logoSrc, $work.'/logo.png');
             copy($spec['read_audio'], $work.'/read.'.pathinfo($spec['read_audio'], PATHINFO_EXTENSION));
             copy($spec['reply_audio'], $work.'/reply.'.pathinfo($spec['reply_audio'], PATHINFO_EXTENSION));
             $readFile = 'read.'.pathinfo($spec['read_audio'], PATHINFO_EXTENSION);
             $replyFile = 'reply.'.pathinfo($spec['reply_audio'], PATHINFO_EXTENSION);
 
-            $hasBgm = $this->bgm && is_file($this->bgm);
+            [$bgmSrc, $bgmCredit] = $this->pickBgm();
+            $hasBgm = $bgmSrc !== null;
             if ($hasBgm) {
-                copy($this->bgm, $work.'/bgm.'.pathinfo($this->bgm, PATHINFO_EXTENSION));
-                $bgmFile = 'bgm.'.pathinfo($this->bgm, PATHINFO_EXTENSION);
+                $bgmFile = 'bgm.'.pathinfo($bgmSrc, PATHINFO_EXTENSION);
+                copy($bgmSrc, $work.'/'.$bgmFile);
             }
 
             // Latar gradien dibuat sekali per render (1 frame), murah.
@@ -90,13 +91,22 @@ class ShortRenderer
             if ($hasBgm) {
                 array_push($inputs, '-stream_loop', '-1', '-i', $bgmFile);
             }
+            // Ilustrasi latar (opsional) jadi input terakhir supaya nomor input lain tidak bergeser.
+            $hasImage = ! empty($spec['image']) && is_file($spec['image']);
+            if ($hasImage) {
+                copy($spec['image'], $work.'/illustration.jpg');
+                array_push($inputs, '-loop', '1', '-framerate', '30', '-t', $this->t($total), '-i', 'illustration.jpg');
+            }
+            $imgIdx = $hasBgm ? 5 : 4;
 
             $lead = (int) round(self::LEAD * 1000);
             $audio = "[2:a]aresample=44100,aformat=channel_layouts=stereo,adelay={$lead}|{$lead},apad=pad_dur=".self::GAP.'[a0];'
                 .'[3:a]aresample=44100,aformat=channel_layouts=stereo,apad=pad_dur='.self::TAIL.'[a1];'
                 .'[a0][a1]concat=n=2:v=0:a=1,loudnorm=I=-16:TP=-1.5:LRA=11[nar];';
             if ($hasBgm) {
-                $audio .= '[nar]asplit[n1][n2];[4:a]volume=0.07,aresample=44100,aformat=channel_layouts=stereo[b];'
+                // Musik mengalah (ducking) saat ada suara narasi, lalu naik lagi di layar penutup.
+                $audio .= '[nar]asplit=3[n1][n2][n3];[4:a]volume=0.55,aresample=44100,aformat=channel_layouts=stereo[b0];'
+                    .'[b0][n3]sidechaincompress=threshold=0.03:ratio=6:attack=30:release=500[b];'
                     .'[n1][b]amix=inputs=2:duration=first:normalize=0[aout];';
                 $waveSrc = '[n2]';
             } else {
@@ -106,8 +116,13 @@ class ShortRenderer
 
             $card = self::CARD;
             $waveY = $card['y'] + $card['h'] + 30;
-            $video = '[0:v]format=yuv420p[bg];'
-                .'[1:v]scale=150:-1[lg];'
+            // Gambar persegi diperbesar menutupi layar vertikal. Potongan digeser ke kiri
+            // supaya watermark kecil di pojok kanan bawah dari layanan gambar ikut terbuang.
+            $video = $hasImage
+                ? "[0:v]format=yuv420p[bg0];[{$imgIdx}:v]scale=-2:".self::H.',crop='.self::W.':'.self::H.':380:0,format=rgba,colorchannelmixer=aa=0.5[ill];'
+                    .'[bg0][ill]overlay=0:0:format=auto,format=yuv420p[bg];'
+                : '[0:v]format=yuv420p[bg];';
+            $video .= "[1:v]scale={$logoW}:-1[lg];"
                 .'[bg][lg]overlay=60:60[v1];'
                 .$waveSrc.'showwaves=s=900x110:mode=cline:rate=30:colors=0xFBBF24|0xFBBF24:scale=sqrt:draw=full,colorkey=0x000000:0.15:0.1,format=rgba[wv];'
                 .'[v1][wv]overlay=90:'.$waveY.':shortest=0[v2];'
@@ -136,7 +151,101 @@ class ShortRenderer
             $this->rmrf($work);
         }
 
-        return ['duration' => $total, 'read' => $dRead, 'reply' => $dReply];
+        return ['duration' => $total, 'read' => $dRead, 'reply' => $dReply, 'bgm_credit' => $bgmCredit];
+    }
+
+    /**
+     * Siapkan logo: ruang kosong di tepinya dibuang (logo persegi dengan banyak margin jadi
+     * kecil dan tulisannya tak terbaca), lalu tentukan lebar tampil. Logo lebar (ada
+     * tulisan) dibuat lebih besar dari logo bulat. Gagal diproses = pakai apa adanya.
+     *
+     * @return int lebar tampil dalam piksel
+     */
+    private function prepareLogo(string $src, string $dst): int
+    {
+        $bytes = (string) file_get_contents($src);
+        $im = function_exists('imagecreatefromstring') ? @imagecreatefromstring($bytes) : false;
+        if (! $im) {
+            copy($src, $dst);
+
+            return 150;
+        }
+        $w = imagesx($im);
+        $h = imagesy($im);
+        $bg = imagecolorat($im, 0, 0);
+        $bgA = ($bg >> 24) & 0x7F;
+        [$br, $bgr, $bb] = [($bg >> 16) & 0xFF, ($bg >> 8) & 0xFF, $bg & 0xFF];
+
+        $x0 = $w;
+        $y0 = $h;
+        $x1 = 0;
+        $y1 = 0;
+        $step = max(1, intdiv(min($w, $h), 500));
+        for ($y = 0; $y < $h; $y += $step) {
+            for ($x = 0; $x < $w; $x += $step) {
+                $c = imagecolorat($im, $x, $y);
+                $a = ($c >> 24) & 0x7F;
+                $isBg = $bgA > 100
+                    ? $a > 100
+                    : ($a < 100 && abs((($c >> 16) & 0xFF) - $br) + abs((($c >> 8) & 0xFF) - $bgr) + abs(($c & 0xFF) - $bb) < 60);
+                if (! $isBg) {
+                    $x0 = min($x0, $x);
+                    $y0 = min($y0, $y);
+                    $x1 = max($x1, $x);
+                    $y1 = max($y1, $y);
+                }
+            }
+        }
+        if ($x1 <= $x0 || $y1 <= $y0) {
+            copy($src, $dst);
+
+            return 150;
+        }
+        $m = (int) round(0.04 * max($x1 - $x0, $y1 - $y0));
+        $x0 = max(0, $x0 - $m);
+        $y0 = max(0, $y0 - $m);
+        $x1 = min($w - 1, $x1 + $m);
+        $y1 = min($h - 1, $y1 + $m);
+        $cw = $x1 - $x0 + 1;
+        $ch = $y1 - $y0 + 1;
+
+        $crop = imagecrop($im, ['x' => $x0, 'y' => $y0, 'width' => $cw, 'height' => $ch]);
+        if (! $crop || ! imagepng($crop, $dst)) {
+            copy($src, $dst);
+
+            return 150;
+        }
+
+        return $cw / $ch > 1.25 ? 250 : 150;
+    }
+
+    /**
+     * Musik latar: file pilihan di Pengaturan, "off" = tanpa musik, kosong = salah satu
+     * lagu bawaan di resources/brand/bgm (acak per video).
+     *
+     * @return array{0:?string,1:?string} [path file, teks kredit untuk deskripsi]
+     */
+    private function pickBgm(): array
+    {
+        if (strtolower(trim((string) $this->bgm)) === 'off') {
+            return [null, null];
+        }
+        if ($this->bgm && is_file($this->bgm)) {
+            return [$this->bgm, null];
+        }
+        $dir = $this->brandDir.'/bgm';
+        $files = glob($dir.'/*.mp3') ?: [];
+        if (! $files) {
+            return [null, null];
+        }
+        $file = $files[random_int(0, count($files) - 1)];
+        $titles = is_file($dir.'/credits.json') ? (json_decode((string) file_get_contents($dir.'/credits.json'), true) ?: []) : [];
+        $title = $titles[basename($file)] ?? null;
+        $credit = $title
+            ? "Musik: {$title} - Kevin MacLeod (incompetech.com)\nLicensed under Creative Commons: By Attribution 4.0\nhttps://creativecommons.org/licenses/by/4.0/"
+            : null;
+
+        return [$file, $credit];
     }
 
     public function duration(string $file): float
@@ -180,7 +289,12 @@ class ShortRenderer
         $ev[] = "Dialogue: 2,{$all},Title,,0,0,0,,{\\pos(540,250)\\an8}".$title;
         $ev[] = "Dialogue: 2,{$all},Mark,,0,0,0,,{\\pos(1020,70)\\an9}".$this->esc($this->watermark);
         $ev[] = "Dialogue: 2,{$all},Cta,,0,0,0,,{\\pos(540,1610)\\an8}".$this->esc($this->cta)
-            ."\\N{\\fs30\\1c{$amber}}".$this->esc('Follow '.$this->channel.' untuk curhatan berikutnya');
+            ."\\N{\\fs30\\1c{$amber}}".$this->esc('Subscribe '.$this->channel.' - cerita baru setiap hari');
+
+        // Lencana ilustrasi sesuai topik, di antara judul dan kartu.
+        array_push($ev, ...$this->badge((string) ($spec['topic'] ?? ''), 540, 462, $all));
+        // Layar penutup: ajakan subscribe bergambar.
+        array_push($ev, ...$this->endCard($total - self::TAIL + 0.1, $total));
 
         $segments = [
             [$spec['label_read'] ?? 'CURHATAN', $spec['read_text'], $t0, $d0],
@@ -199,6 +313,157 @@ class ShortRenderer
         }
 
         return $h.implode("\n", $ev)."\n";
+    }
+
+    // ---------------------------------------------------------------- ilustrasi (gambar vektor ASS)
+
+    /** Satu event gambar vektor ASS. $colorBgr contoh '24BFFB' (BGR). */
+    private function shape(string $draw, string $colorBgr, string $range, int $layer = 2, string $alpha = '00', string $extra = ''): string
+    {
+        return "Dialogue: {$layer},{$range},Shape,,0,0,0,,{\\pos(0,0)\\1c&H{$colorBgr}&\\1a&H{$alpha}&{$extra}\\p1}{$draw}{\\p0}";
+    }
+
+    private function nums(float ...$n): string
+    {
+        return implode(' ', array_map(fn ($v) => (int) round($v), $n));
+    }
+
+    private function circle(float $cx, float $cy, float $r): string
+    {
+        $k = 0.5523 * $r;
+
+        return 'm '.$this->nums($cx - $r, $cy).' b '.$this->nums($cx - $r, $cy - $k, $cx - $k, $cy - $r, $cx, $cy - $r)
+            .' '.$this->nums($cx + $k, $cy - $r, $cx + $r, $cy - $k, $cx + $r, $cy)
+            .' '.$this->nums($cx + $r, $cy + $k, $cx + $k, $cy + $r, $cx, $cy + $r)
+            .' '.$this->nums($cx - $k, $cy + $r, $cx - $r, $cy + $k, $cx - $r, $cy);
+    }
+
+    private function roundRect(float $x, float $y, float $w, float $h, float $r): string
+    {
+        $k = 0.5523 * $r;
+        $x2 = $x + $w;
+        $y2 = $y + $h;
+
+        return 'm '.$this->nums($x + $r, $y).' l '.$this->nums($x2 - $r, $y)
+            .' b '.$this->nums($x2 - $r + $k, $y, $x2, $y + $r - $k, $x2, $y + $r)
+            .' l '.$this->nums($x2, $y2 - $r)
+            .' b '.$this->nums($x2, $y2 - $r + $k, $x2 - $r + $k, $y2, $x2 - $r, $y2)
+            .' l '.$this->nums($x + $r, $y2)
+            .' b '.$this->nums($x + $r - $k, $y2, $x, $y2 - $r + $k, $x, $y2 - $r)
+            .' l '.$this->nums($x, $y + $r)
+            .' b '.$this->nums($x, $y + $r - $k, $x + $r - $k, $y, $x + $r, $y);
+    }
+
+    private function poly(float ...$pts): string
+    {
+        $out = 'm';
+        foreach (array_chunk($pts, 2) as $i => [$x, $y]) {
+            $out .= ($i === 1 ? ' l' : '').' '.(int) round($x).' '.(int) round($y);
+        }
+
+        return $out;
+    }
+
+    /** Pilih ikon dari kata kunci topik. */
+    private function iconFor(string $topic): string
+    {
+        $t = mb_strtolower($topic);
+        $map = [
+            'house' => ['rumah tangga', 'keluarga', 'orang tua', 'anak', 'ibu', 'ayah', 'mertua', 'rumah', 'saudara'],
+            'heart' => ['pacar', 'cinta', 'asmara', 'jodoh', 'nikah', 'selingkuh', 'hubungan', 'mantan', 'rindu', 'jomblo'],
+            'bag' => ['kerja', 'karier', 'karir', 'bos', 'kantor', 'usaha', 'rekan'],
+            'coin' => ['uang', 'keuangan', 'utang', 'hutang', 'gaji', 'bisnis', 'ekonomi'],
+            'cap' => ['kuliah', 'sekolah', 'kampus', 'pendidikan', 'skripsi', 'ujian'],
+            'people' => ['teman', 'sahabat', 'pertemanan', 'sosial', 'tetangga', 'komunitas'],
+        ];
+        foreach ($map as $icon => $words) {
+            foreach ($words as $w) {
+                if (str_contains($t, $w)) {
+                    return $icon;
+                }
+            }
+        }
+
+        return 'chat';
+    }
+
+    /** Lencana bulat dengan ikon topik: daftar event ASS. */
+    private function badge(string $topic, int $cx, int $cy, string $range): array
+    {
+        $amber = '24BFFB';
+        $dark = '3B1F1B';
+        $ev = [
+            $this->shape($this->circle($cx, $cy, 58), $amber, $range, 1),
+            $this->shape($this->circle($cx, $cy, 52), $dark, $range, 2),
+        ];
+        foreach ($this->iconDraws($this->iconFor($topic), $cx, $cy, $dark) as [$draw, $color]) {
+            $ev[] = $this->shape($draw, $color ?? $amber, $range, 3);
+        }
+
+        return $ev;
+    }
+
+    /** @return array<int,array{0:string,1:?string}> daftar [gambar, warna BGR; null = warna aksen] */
+    private function iconDraws(string $icon, float $x, float $y, string $dark): array
+    {
+        $n = fn (float ...$v) => $this->nums(...$v);
+
+        return match ($icon) {
+            'heart' => [[
+                'm '.$n($x, $y + 26).' b '.$n($x - 46, $y - 6, $x - 26, $y - 34, $x, $y - 14)
+                .' b '.$n($x + 26, $y - 34, $x + 46, $y - 6, $x, $y + 26), null,
+            ]],
+            'house' => [
+                [$this->poly($x - 36, $y - 2, $x, $y - 30, $x + 36, $y - 2), null],
+                [$this->poly($x - 25, $y - 4, $x + 25, $y - 4, $x + 25, $y + 28, $x - 25, $y + 28), null],
+                [$this->poly($x - 6, $y + 28, $x - 6, $y + 8, $x + 6, $y + 8, $x + 6, $y + 28), $dark],
+            ],
+            'bag' => [
+                [$this->roundRect($x - 33, $y - 8, 66, 36, 6), null],
+                [$this->poly($x - 12, $y - 8, $x - 12, $y - 21, $x + 12, $y - 21, $x + 12, $y - 8, $x + 7, $y - 8, $x + 7, $y - 16, $x - 7, $y - 16, $x - 7, $y - 8), null],
+                [$this->poly($x - 33, $y + 6, $x + 33, $y + 6, $x + 33, $y + 9, $x - 33, $y + 9), $dark],
+            ],
+            'coin' => [
+                [$this->circle($x, $y, 30), null],
+                [$this->circle($x, $y, 22), $dark],
+                [$this->circle($x, $y, 15), null],
+            ],
+            'cap' => [
+                [$this->poly($x - 40, $y - 6, $x, $y - 26, $x + 40, $y - 6, $x, $y + 14), null],
+                [$this->poly($x - 22, $y + 2, $x, $y + 13, $x + 22, $y + 2, $x + 22, $y + 22, $x, $y + 31, $x - 22, $y + 22), null],
+                [$this->poly($x + 36, $y - 3, $x + 40, $y - 3, $x + 40, $y + 22, $x + 36, $y + 22), null],
+            ],
+            'people' => [
+                [$this->circle($x - 17, $y - 14, 11), null],
+                [$this->circle($x + 17, $y - 14, 11), null],
+                ['m '.$n($x - 36, $y + 26).' b '.$n($x - 36, $y + 2, $x - 2, $y + 2, $x - 2, $y + 26), null],
+                ['m '.$n($x + 2, $y + 26).' b '.$n($x + 2, $y + 2, $x + 36, $y + 2, $x + 36, $y + 26), null],
+            ],
+            default => [
+                [$this->poly($x - 34, $y - 26, $x + 34, $y - 26, $x + 34, $y + 12, $x - 4, $y + 12, $x - 20, $y + 30, $x - 19, $y + 12, $x - 34, $y + 12), null],
+                [$this->circle($x - 16, $y - 7, 4), $dark],
+                [$this->circle($x, $y - 7, 4), $dark],
+                [$this->circle($x + 16, $y - 7, 4), $dark],
+            ],
+        };
+    }
+
+    /** Layar penutup: latar digelapkan + tombol SUBSCRIBE + teks ajakan. */
+    private function endCard(float $from, float $to): array
+    {
+        $r = $this->ts($from).','.$this->ts($to);
+        $cy = 960;
+        $fade = '\\fad(300,0)';
+
+        return [
+            $this->shape($this->rect(0, 0, self::W, self::H), '20120F', $r, 4, '00', $fade),
+            "Dialogue: 5,{$r},Title,,0,0,0,,{\\pos(540,".($cy - 250)."){$fade}\\an8\\fs60}Suka ceritanya?",
+            // Tombol merah bergaya YouTube + segitiga putar.
+            $this->shape($this->roundRect(240, $cy - 90, 600, 180, 90), '0000FF', $r, 5, '00', $fade),
+            $this->shape($this->poly(330, $cy - 42, 330, $cy + 42, 402, $cy), 'FFFFFF', $r, 6, '00', $fade),
+            "Dialogue: 7,{$r},Title,,0,0,0,,{\\pos(450,".($cy - 36)."){$fade}\\an7\\fs64}SUBSCRIBE",
+            "Dialogue: 5,{$r},Cta,,0,0,0,,{\\pos(540,".($cy + 150)."){$fade}\\an8\\fs42}Cerita baru setiap hari\\N{\\fs34\\1c&H0024BFFB&}Nyalakan lonceng supaya tidak ketinggalan",
+        ];
     }
 
     /** Pecah teks jadi halaman; durasi tiap halaman sebanding dengan jumlah hurufnya. */

@@ -1,0 +1,7 @@
+Musik latar di folder ini: Kevin MacLeod (incompetech.com)
+Licensed under Creative Commons: By Attribution 4.0
+https://creativecommons.org/licenses/by/4.0/
+
+Syarat lisensi: sebut judul lagu dan pembuatnya di deskripsi video.
+Tool ini menambahkan kredit itu otomatis ke deskripsi setiap video yang memakai lagu-lagu ini.
+File sudah disamakan volumenya dan dipotong 75 detik (perubahan ini sesuai lisensi).

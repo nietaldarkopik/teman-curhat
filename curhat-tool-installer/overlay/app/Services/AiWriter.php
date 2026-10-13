@@ -126,8 +126,8 @@ Daftar curhat di sesi ini:
 {$list}
 
 Tulis:
-- "pembuka": sekitar 150-200 kata. Sapa penonton, perkenalkan sesi, singgung tema-tema curhat hari ini tanpa membocorkan detail, sebutkan bahwa semua cerita dibacakan secara anonim, dan ajak subscribe secara singkat dan tidak memaksa.
-- "penutup": sekitar 100-150 kata. Rangkum pelajaran dari sesi ini, ajak penonton menjawab pertanyaan-pertanyaan tadi di kolom komentar (sebutkan bahwa tanggapan terbaik bisa dibacakan di video berikutnya), ajak yang ingin curhat untuk mengirim DM ke page Facebook "{$this->channel()}", lalu salam penutup.
+- "pembuka": sekitar 150-200 kata. Sapa penonton, perkenalkan sesi, singgung tema-tema curhat hari ini tanpa membocorkan detail, sebutkan bahwa semua cerita dibacakan secara anonim, dan ajak subscribe secara singkat dan tidak memaksa, dengan alasan konkret (channel ini membacakan curhat baru dan memberi tanggapan setiap hari, jadi yang subscribe tidak ketinggalan cerita berikutnya).
+- "penutup": sekitar 100-150 kata. Rangkum pelajaran dari sesi ini, ajak penonton menjawab pertanyaan-pertanyaan tadi di kolom komentar (sebutkan bahwa tanggapan terbaik bisa dibacakan di video berikutnya), ajak yang ingin curhat untuk mengirim DM ke page Facebook "{$this->channel()}". Setelah itu WAJIB ada ajakan subscribe yang jelas dan hangat (satu atau dua kalimat): katakan bahwa besok ada curhatan baru, minta penonton menekan subscribe dan menyalakan lonceng supaya tidak ketinggalan, lalu salam penutup.
 
 Format JSON:
 {"pembuka":"...","penutup":"..."}
@@ -195,7 +195,7 @@ Isi sesi:
 {$chapters}
 Buat:
 - "judul": 3 pilihan judul YouTube dalam bahasa Indonesia, maksimal 90 karakter, menarik tapi jujur dan tidak menyesatkan.
-- "deskripsi": deskripsi YouTube. Paragraf pembuka singkat, daftar topik yang dibahas, daftar bab bila ada, ajakan menjawab pertanyaan di komentar, ajakan mengirim curhat lewat DM page Facebook "{$this->channel()}", lalu catatan bahwa semua cerita dibacakan secara anonim dan tanggapan host adalah pendapat pribadi, bukan pengganti bantuan profesional.
+- "deskripsi": deskripsi YouTube. Paragraf pembuka singkat, daftar topik yang dibahas, daftar bab bila ada, ajakan menjawab pertanyaan di komentar, ajakan subscribe dan menyalakan lonceng karena ada curhatan baru setiap hari, ajakan mengirim curhat lewat DM page Facebook "{$this->channel()}", lalu catatan bahwa semua cerita dibacakan secara anonim dan tanggapan host adalah pendapat pribadi, bukan pengganti bantuan profesional.
 - "tag": 10-15 tag YouTube berupa kata atau frasa pendek.
 - "judul_facebook": judul video untuk Facebook, maksimal 90 karakter.
 - "caption_facebook": caption Facebook 2-4 kalimat dengan 3-5 hashtag di akhir.
@@ -238,6 +238,7 @@ Tulis:
 - "hook": judul pendek untuk ditampilkan di layar video, maksimal 42 karakter, memancing penasaran tanpa menyesatkan, tanpa nama orang.
 - "balasan": balasan host untuk dibacakan, 70-90 kata. Akui perasaannya dulu, lalu satu atau dua saran praktis. Tidak menghakimi, tidak mendiagnosis, tidak mengaku psikolog. Jangan menambah fakta di luar cerita.
 - "lemparan": satu kalimat pertanyaan spesifik ke penonton, diucapkan di akhir balasan, mengajak menjawab di kolom komentar.
+- "adegan": deskripsi satu adegan ilustrasi untuk latar video, BAHASA INGGRIS, maksimal 35 kata. Gambarkan suasana dan benda/tempat yang mewakili perasaan cerita (misal sofa kosong di malam hari, ponsel menyala di meja, jalan hujan). Tanpa nama, tanpa teks atau tulisan, tanpa wajah close-up, dan jangan menggambarkan kekerasan atau hal vulgar.
 - "judul_youtube": maksimal 80 karakter, menarik tapi jujur.
 - "deskripsi": 2-3 kalimat. Sebut bahwa cerita dibacakan anonim, balasan adalah pendapat pribadi dan bukan pengganti bantuan profesional, dan ajak kirim curhat lewat DM page Facebook "{$this->channel()}".
 - "tag": 8-12 tag, kata atau frasa pendek tanpa tanda pagar.
@@ -251,7 +252,7 @@ Curhat (sudah dianonimkan):
 """
 
 Format JSON:
-{"hook":"...","balasan":"...","lemparan":"...","judul_youtube":"...","deskripsi":"...","tag":["..."],"caption_facebook":"..."}
+{"hook":"...","balasan":"...","lemparan":"...","adegan":"...","judul_youtube":"...","deskripsi":"...","tag":["..."],"caption_facebook":"..."}
 P;
         $j = $this->claude->json($prompt, 2500);
 
@@ -265,6 +266,7 @@ P;
             'hook' => Str::limit($hook, 48, ''),
             'reply' => $reply,
             'question' => trim((string) ($j['lemparan'] ?? '')),
+            'scene' => Str::limit(trim((string) ($j['adegan'] ?? '')), 300, ''),
             'yt_title' => Str::limit(trim((string) ($j['judul_youtube'] ?? $hook)), 90, ''),
             'description' => trim((string) ($j['deskripsi'] ?? '')),
             'tags' => array_values(array_filter(array_map(fn ($t) => trim((string) $t, " #\t\n"), (array) ($j['tag'] ?? [])))),

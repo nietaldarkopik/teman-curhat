@@ -39,6 +39,7 @@ class Setting extends Model
         'short_max_chars' => '900',
         'short_watermark' => '@temancurhat',
         'short_cta' => 'Mau curhat? Kirim DM ke Page Teman Curhat',
+        'short_illustration' => '1',
         'ffmpeg_path' => 'ffmpeg',
         'edge_tts_path' => 'edge-tts',
         'edge_tts_voice' => 'id-ID-ArdiNeural',

@@ -9,6 +9,7 @@ use App\Models\Publication;
 use App\Models\Setting;
 use App\Services\AiWriter;
 use App\Services\ClaudeService;
+use App\Services\ImageService;
 use App\Services\ShortRenderer;
 use App\Services\TtsService;
 use Illuminate\Console\Command;
@@ -212,6 +213,13 @@ class MakeShort extends Command
         [$replyAudio, $engine2] = $tts->speak($replySpoken, "short-{$stamp}-reply", $replyGender);
         $this->line("Suara: {$engine1} ({$readGender}) / {$engine2} ({$replyGender})");
 
+        $image = null;
+        if (Setting::val('short_illustration') !== '0') {
+            $this->line('Membuat ilustrasi...');
+            $image = (new ImageService)->fetch($pkg['scene'], $c->id * 1000 + random_int(0, 999));
+            $this->line($image ? 'Ilustrasi siap.' : 'Ilustrasi gagal dibuat, video dirender tanpa ilustrasi.');
+        }
+
         $this->line('Merender video...');
         $out = storage_path('app/shorts/curhat-'.$c->id.'-'.now()->format('Ymd-His').'.mp4');
         $channel = (string) Setting::val('channel_name');
@@ -223,20 +231,31 @@ class MakeShort extends Command
             channel: $channel,
             cta: (string) Setting::val('short_cta'),
         );
-        $info = $renderer->render([
-            'title' => $pkg['hook'],
-            'read_text' => $readText,
-            'reply_text' => $replySpoken,
-            'read_audio' => $readAudio,
-            'reply_audio' => $replyAudio,
-        ], $out);
+        try {
+            $info = $renderer->render([
+                'title' => $pkg['hook'],
+                'topic' => (string) $c->topic,
+                'image' => $image,
+                'read_text' => $readText,
+                'reply_text' => $replySpoken,
+                'read_audio' => $readAudio,
+                'reply_audio' => $replyAudio,
+            ], $out);
+        } finally {
+            if ($image) {
+                @unlink($image);
+            }
+        }
         $this->line('Durasi: '.round($info['duration']).' detik');
 
         $tags = array_slice(array_values(array_unique(array_merge($pkg['tags'], ['shorts', 'curhat', 'temancurhat']))), 0, 15);
         $hashtags = '#Shorts #'.Str::slug($channel, '').' #curhat';
-        $yt = trim($pkg['description'])."\n\n".$hashtags;
+        $credit = $info['bgm_credit'] ? "\n\n".$info['bgm_credit'] : '';
+        $yt = trim($pkg['description'])
+            ."\n\nSuka ceritanya? Subscribe {$channel} dan nyalakan lonceng, curhatan baru tayang setiap hari."
+            ."\n\n".$hashtags.$credit;
 
-        return DB::transaction(function () use ($c, $pkg, $out, $tags, $yt, $replySpoken, $readText) {
+        return DB::transaction(function () use ($c, $pkg, $out, $tags, $yt, $replySpoken, $readText, $credit) {
             $project = Project::create([
                 'title' => 'Short: '.$pkg['hook'],
                 'kind' => 'short',
@@ -247,7 +266,7 @@ class MakeShort extends Command
                 'yt_description' => $yt,
                 'yt_tags' => implode(', ', $tags),
                 'fb_title' => $pkg['yt_title'],
-                'fb_description' => $pkg['fb_caption'] ?: $pkg['description'],
+                'fb_description' => ($pkg['fb_caption'] ?: $pkg['description']).$credit,
             ]);
             ProjectItem::create([
                 'project_id' => $project->id,

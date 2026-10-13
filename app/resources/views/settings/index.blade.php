@@ -88,13 +88,18 @@
     <input type="number" min="5" max="720" name="short_publish_delay_minutes" value="{{ $s('short_publish_delay_minutes') }}">
     <label class="f">Maksimal panjang curhat <span class="hint">(karakter; yang lebih panjang dilewati)</span></label>
     <input type="number" name="short_max_chars" value="{{ $s('short_max_chars') }}">
+    <label class="f">Ilustrasi latar <span class="hint">(gambar AI gratis dari Pollinations, dibuat dari deskripsi adegan teks yang sudah dianonimkan; gagal = video tanpa ilustrasi)</span></label>
+    <select name="short_illustration">
+      <option value="1" @selected($s('short_illustration') !== '0')>Aktif</option>
+      <option value="0" @selected($s('short_illustration') === '0')>Nonaktif</option>
+    </select>
     <div class="grid g2">
       <div><label class="f">Watermark</label><input type="text" name="short_watermark" value="{{ $s('short_watermark') }}"></div>
       <div><label class="f">Ajakan di bawah video</label><input type="text" name="short_cta" value="{{ $s('short_cta') }}"></div>
     </div>
     <label class="f">Logo <span class="hint">(path file PNG, mis. C:\wamp64\www\curhat-tool\logo.png; kosong = logo bawaan)</span></label>
     <input type="text" name="short_logo" value="{{ $s('short_logo') }}">
-    <label class="f">Musik latar <span class="hint">(opsional, path file mp3; dipelankan di bawah suara)</span></label>
+    <label class="f">Musik latar <span class="hint">(path file mp3; kosong = salah satu dari 5 lagu bawaan Kevin MacLeod (CC BY 4.0, kredit otomatis masuk deskripsi, dipilih acak); ketik off = tanpa musik; otomatis dipelankan saat ada suara)</span></label>
     <input type="text" name="short_bgm" value="{{ $s('short_bgm') }}">
     <label class="f">Path FFmpeg <span class="hint">(kosongkan/"ffmpeg" bila sudah ada di PATH)</span></label>
     <input type="text" name="ffmpeg_path" value="{{ $s('ffmpeg_path') }}">

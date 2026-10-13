@@ -10,7 +10,7 @@ use RuntimeException;
 
 class YouTubeService
 {
-    private const SCOPES = 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly';
+    private const SCOPES = 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.force-ssl';
 
     public function appConfigured(): bool
     {
@@ -61,6 +61,36 @@ class YouTubeService
         $ch = Net::http()->withToken($this->accessToken())->timeout(60)
             ->get('https://www.googleapis.com/youtube/v3/channels', ['part' => 'snippet', 'mine' => 'true']);
         Setting::put('yt_channel_title', $ch->json('items.0.snippet.title') ?: '(channel tidak terbaca)');
+    }
+
+    /** Teks komentar dari channel: pertanyaan ke penonton + ajakan subscribe. */
+    public function engagementComment(Project $project): string
+    {
+        $qs = $project->items->pluck('audience_question')->filter()->values();
+        if ($qs->count() === 1) {
+            $body = $qs[0];
+        } elseif ($qs->count() > 1) {
+            $body = "Menurut kamu bagaimana?\n".$qs->map(fn ($q, $i) => ($i + 1).'. '.$q)->implode("\n");
+        } else {
+            $body = 'Menurut kamu bagaimana? Tulis pendapatmu di komentar ya.';
+        }
+
+        return $body."\n\nCurhatan baru tayang setiap hari. Subscribe dan nyalakan lonceng supaya tidak ketinggalan.";
+    }
+
+    /** Posting komentar ke video yang sudah tayang. Pin-nya tetap manual: API YouTube tidak menyediakannya. */
+    public function postComment(string $videoId, string $text): void
+    {
+        $res = Net::http()->withToken($this->accessToken())->timeout(60)
+            ->post('https://www.googleapis.com/youtube/v3/commentThreads?part=snippet', [
+                'snippet' => [
+                    'videoId' => $videoId,
+                    'topLevelComment' => ['snippet' => ['textOriginal' => mb_substr($text, 0, 9000)]],
+                ],
+            ]);
+        if (! $res->successful()) {
+            throw new RuntimeException('YouTube komentar: '.($res->json('error.message') ?: ('HTTP '.$res->status())));
+        }
     }
 
     private function storeAccess(string $token, int $expiresIn): void
