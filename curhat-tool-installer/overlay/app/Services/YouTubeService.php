@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Project;
 use App\Models\Publication;
 use App\Models\Setting;
 use App\Support\Net;
